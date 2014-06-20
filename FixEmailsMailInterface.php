@@ -1,30 +1,4 @@
 <?php
-$connection;
-
-$dbname;
-$host;
-$port;
-$username;
-$password;
-
-$stating_dbname;
-$stating_host;
-$stating_port;
-$stating_username;
-$stating_password;
-
-$main_dbname;
-$main_host;
-$main_port;
-$main_username;
-$main_password;
-
-$configuration = parse_ini_file ( "ReportingConfig.ini", TRUE );
-
-loadArgs ( $argv );
-
-$query = "SELECT DISTINCT recipient FROM `sg_events_email_event` WHERE CHAR_LENGTH(recipient)=30";
-$emailsToFix = stating_query ( $query );
 
 foreach ( $emailsToFix as $emailToFix ) {
 	$originalEmailToFix = $emailToFix ['recipient'];
