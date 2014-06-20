@@ -23,25 +23,34 @@ $configuration = parse_ini_file ( "ReportingConfig.ini", TRUE );
 
 loadArgs ( $argv );
 
-$query = "SELECT DISTINCT recipient FROM `sg_events_email_event` WHERE CHAR_LENGTH(recipient)=30";
-$emailsToFix = stating_query ( $query );
-
-foreach ( $emailsToFix as $emailToFix ) {
-	$originalEmailToFix = $emailToFix ['recipient'];
-	$emailToQuery = '%' . $originalEmailToFix . '%';
-	$query = "SELECT email FROM `sg_users` WHERE email LIKE '$emailToQuery'";
-	$correctEmail = main_query ( $query );
-	if (count ( $correctEmail ) == 1) {
-		$correctEmail = $correctEmail [0] ['email'];
-		if (strcasecmp ( $correctEmail, $originalEmailToFix ) != 0) {
-			$query = "UPDATE `sg_events_email_event` SET recipient='$correctEmail' WHERE recipient='$originalEmailToFix'";
-			stating_insert ( $query );
+$query = "SELECT recipient, type, YEAR(date) as year, MONTH(date) as month, COUNT(type) as interactions FROM `sg_events_email_event` WHERE type='open' OR type='click' GROUP BY recipient, type, YEAR(year), MONTH(date)";
+$result = stating_query ( $query );
+print_r("Query to get users activity complete\n");
+$query = "SELECT email,gender,reg_trigger FROM `sg_users`";
+$allUserData = main_query ( $query, 7 );
+print_r("Query to get users information complete\n");
+$file = fopen ( "InactiveUsers.brute_output", "r+" );
+foreach ( $result as $row ) {
+	$row ["gender"] = $allUserData [$row ["recipient"]] ["gender"];
+	$row ["reg_trigger"] = $allUserData [$row ["recipient"]] ["reg_trigger"];
+}
+if (count ( $result ) > 0) {
+	foreach ( $result [0] as $key => $value ) {
+		fwrite ( $file, $key . ((strcasecmp ( array_pop ( array_keys ( $result [0] ) ), $key ) == 0) ? "" : ";") );
+	}
+	fwrite ( $file, "\n" );
+	foreach ( $result as $row ) {
+		$insertQuery = "INSERT INTO `usersOpensClicks`(email,type,year,month,total,gender,reg_trigger) VALUES (";
+		foreach ( $row as $key => $value ) {
+			fwrite ( $file, $value . ((strcasecmp ( array_pop ( array_keys ( $row ) ), $key ) == 0) ? "" : ";") );
+			$insertQuery .= "'$value'" . ((strcasecmp ( array_pop ( array_keys ( $row ) ), $key ) == 0) ? "" : ",");
 		}
-	} else {
-		var_dump ( $emailToQuery );
-		var_dump ( $correctEmail );
+		fwrite ( $file, "\n" );
+		$insertQuery .= ")";
+		stating_insert ( $insertQuery );
 	}
 }
+fclose ( $file );
 function filter($input) {
 	global $connection;
 	setStatingDB ();
